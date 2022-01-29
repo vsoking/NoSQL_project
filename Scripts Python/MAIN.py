@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------
 # Created by - Alann Goerke
-# Version - 1.0
-# Last Update - 28.01.2022
+# Version - 1.1
+# Last Update - 29.01.2022
 
 
 # ------------------------------------------------------------------------
@@ -55,8 +55,8 @@ col_gkg_name = [''] # --- To be completed
 # --- FUNCTIONS
 # ------------------------------------------------------------------------
 def generate_zip_files(initial_date, final_date):
-    '''Generates all zip files to download between a user define period of
-    time.
+    '''Generates all zip files to download between a user defined period
+    of time.
 
     Parameters
     ---------
@@ -70,17 +70,21 @@ def generate_zip_files(initial_date, final_date):
         and gkg
     
     '''
-    # --- Local variables definiton
+    # --- Local variables
     url = 'http://data.gdeltproject.org/gdeltv2/'
     file_type = ['.export.CSV.zip', '.mentions.CSV.zip', '.gkg.csv.zip']
 
-    datetime_index = pd.date_range(start=initial_date, end=final_date, freq='15min')
-
-    df = pd.DataFrame([['', '']], columns=['date-str', 'zip'], index=datetime_index)
+    # --- Dataframe initialization, with datetime index
+    datetime_index = pd.date_range(start=initial_date, end=final_date, 
+        freq='15min')
+    
+    df = pd.DataFrame([['', '']], columns=['date-str', 'zip'], 
+        index=datetime_index)
 
     df['date-str'] = df.index.strftime('%Y%m%d%H%M%S')
     df['zip'] = df['date-str'].apply(lambda x: url+x)
 
+    # --- Columns insertion : export, mentions, gkg  
     for csv in file_type:
         df.insert(loc=df.shape[1],
             column='eng-'+csv.split('.')[1],
@@ -90,6 +94,7 @@ def generate_zip_files(initial_date, final_date):
             column='translingual-'+csv.split('.')[1],
             value=df['zip'].apply(lambda x: x+'.translation'+csv))
 
+    # --- Delete unused columns 
     del df['date-str']
     del df['zip']
 
@@ -107,10 +112,12 @@ def wget_file(file):
     '''
     cmd = ['wget', file]
 
+    # --- Run the wget bash command
     proc = subprocess.Popen(cmd,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE)
+    
     try:
         out, err = proc.communicate(timeout=10)
         code = proc.returncode
@@ -123,79 +130,118 @@ def wget_file(file):
 
 
 # ------------------------------------------------------------------------
-def request1(dict_files):
-    '''Pre-processing all csv files for only ONE 15 minutes period. The
-    prupose of this function is to simplify the data before copying in
-    Cassandra database.
+def read_zip_files(dict_files):
+    '''Read some of the zip files downloaded with Pandas and concatenate
+    the English and Translingual files.
 
     Parameters
     ---------
-    - dict_files: type: dict,
-        Contain the 6 zip file names (export, mentions & gkg for both 
-        English and translingual artciles)
+    - dict_files: type: dict
+        Containing all the zip name files for a given date
 
     Return
     -----
-    Writes a new .csv file that enable us to easily respond to the first
-    CQL request on Cassandra.
-    
+    - dict_df: type: dict
+        Dictionnary with all DataFrames inside for each zip file
+
     '''
-    # --------------------------------------------------------------------
-    # --- Eng articles 
+    # --- Eng articles
     df_export = pd.read_csv(dict_files['eng-export'].split('/')[-1], 
         sep='\t',
         names=col_events_name,
         header=None)
-    
+
     df_mentions = pd.read_csv(dict_files['eng-mentions'].split('/')[-1], 
         sep='\t',
         names=col_mentions_name,
         header=None)
-
-    col_req1_export = ['GlobalEventID', 'Day', 'ActionGeo_CountryCode']
-    col_req1_mentions = ['GlobalEventID', 'MentionDocTranslationInfo']
-
-    df_req1 = df_export[col_req1_export]
-    df_req1 = df_req1.join(df_mentions[col_req1_mentions], rsuffix='_')
-    del df_req1['GlobalEventID_']
-
-    # --------------------------------------------------------------------
-    # --- Translingual articles
-    df_export_translingual = pd.read_csv(
-        dict_files['translingual-export'].split('/')[-1], 
+    
+    # --- Other countries articles
+    df_export_translingual = pd.read_csv(dict_files['translingual-export'].split('/')[-1], 
         sep='\t',
         names=col_events_name,
         header=None)
 
-    df_mentions_translingual = pd.read_csv(
-        dict_files['translingual-mentions'].split('/')[-1], 
+    df_mentions_translingual = pd.read_csv(dict_files['translingual-mentions'].split('/')[-1], 
         sep='\t',
         names=col_mentions_name,
         header=None)
-
-    col_req1_export_translingual = ['GlobalEventID', 'Day', 
-        'ActionGeo_CountryCode']
-    col_req1_mentions_translingual = ['GlobalEventID', 
-        'MentionDocTranslationInfo']
-
-    df_req1_translingual = df_export_translingual[col_req1_export_translingual]
-    df_req1_translingual = df_req1_translingual.join(
-        df_mentions_translingual[col_req1_mentions_translingual], 
-        rsuffix='_')
-
-    del df_req1_translingual['GlobalEventID_']
-
-    df_req1_translingual['MentionDocTranslationInfo'] = df_req1_translingual[
-        'MentionDocTranslationInfo'].apply(
-            lambda x: x.split(';')[0].split(':')[-1])
-
-    # --------------------------------------------------------------------
-    # --- Join both of Eng and Translingual articles    
-    df_req1_final = pd.concat(
-        [df_req1, df_req1_translingual]).reset_index(drop=True)
     
+    # --- Concatenate DataFrames
+    df_export = pd.concat([df_export, df_export_translingual]).reset_index(drop=True)
+    df_mentions = pd.concat([df_mentions, df_mentions_translingual]).reset_index(drop=True)
+
+    dict_df = {'export': df_export, 'mentions': df_mentions}
+
+    return dict_df
+
+
+# ------------------------------------------------------------------------
+def request1(dict_df):
+    '''Pre-processing csv files that enable us to easily respond to the 
+    first CQL request on Cassandra. The purpose of this function is to 
+    simplify the data before copying into the Cassandra database.
+
+    IMPORTANT: It's only for ONE 15 minutes period !
+
+    Parameters
+    ---------
+    - dict_df: type: dict,
+        Contain the 3 zip file names and DataFrames: export, mentions & 
+        gkg (already concatenate for both English and Translingual 
+        articles)
+
+    Return
+    -----
+    Writes a '.csv' file containing the data processed.
+    
+    '''
+    df_export = dict_df['export']
+    df_mentions = dict_df['mentions']
+
+    # --- Attributs selection
+    col_req1_export = ['GlobalEventID', 'Day', 'ActionGeo_CountryCode']
+    col_req1_mentions = ['GlobalEventID', 'MentionDocTranslationInfo']
+
+    df_req1 = df_export[col_req1_export]
+    df_req1 = df_req1.merge(df_mentions[col_req1_mentions],
+        how='inner', on='GlobalEventID')
+
+    # Possible to change NAN into a str like 'UK' if needed
+    df_req1['MentionDocTranslationInfo'] = df_req1[
+        'MentionDocTranslationInfo'].apply(lambda x: 
+            x.split(';')[0].split(':')[-1] if isinstance(x, str) else x)
+
     # --- Write df in csv
-    df_req1_final.to_csv('data_request1.csv', index=False)
+    df_req1.to_csv('data_request1.csv', index=False)
+
+
+# ------------------------------------------------------------------------
+def request2(dict_df):
+    '''Pre-processing csv files that enable us to easily respond to the 
+    second CQL request on Cassandra. 
+
+    Parameters
+    ---------
+    - dict_df: type: dict,
+        Contain the 3 zip file names and DataFrames: export, mentions & 
+        gkg (already concatenate for both English and Translingual 
+        articles)
+
+    Return
+    -----
+    Writes a '.csv' file containing the data processed.
+    
+    '''
+    df_export = dict_df['export']
+
+    col_req2_export = ['GlobalEventID', 'Day', 'MonthYear', 'Year',
+        'ActionGeo_CountryCode', 'NumMentions']
+
+    df_req2 = df_export[col_req2_export]
+
+    # --- Write df in csv
+    df_req2.to_csv('data_request2.csv', index=False)
 
 
 # ------------------------------------------------------------------------
@@ -226,16 +272,16 @@ if __name__ == '__main__':
     # --- Pre-processing of zip files for requests
     print('-'*75)
     print('---', ' Pre-processing zip files, please wait ...\n')
+    dict_zip_files = dict(zip_files.iloc[0])
+    dict_df = read_zip_files(dict_files=dict_zip_files)
 
     # --- Request 1
-    dict_zip_files = dict(zip_files.iloc[0])
-    request1(dict_zip_files)
+    request1(dict_df)
     print('-'*20, ' PRE-PROCESSING REQUEST 1 SUCCEED ', '-'*19, '\n')
 
     # --- Request 2
-    # note : it may be better to use a function read_csv_files, then use 
-    #        request1, request2 ... becasue the request 2 is using the same 
-    #        tools as the first one.
+    request2(dict_df)
+    print('-'*20, ' PRE-PROCESSING REQUEST 2 SUCCEED ', '-'*19, '\n')
  
     # --- Request 3
 

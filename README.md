@@ -4,7 +4,7 @@
 
 ### Remarques :
 
-- Utiliser python pour le téléchargement des données, le processing et les création de table sur Cassandra n’est pas la solution la plus optimisée à terme. Spark peut être solution plus optimale.
+- Utiliser python pour le téléchargement des données, le processing et les création de table sur Cassandra n’est pas la solution la plus optimisée à terme. Spark peut être une solution plus optimale.
 
 ### Répartition des tâches pour la suite du projet :
 
