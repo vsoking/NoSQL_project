@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------
 # Created by - Alann Goerke
-# Version - 1.1
-# Last Update - 29.01.2022
+# Version - 2.1
+# Last Update - 02.02.2022
 
 
 # ------------------------------------------------------------------------
@@ -11,11 +11,13 @@ import pandas as pd
 import time as t
 import subprocess
 import sys
-
+import os
 
 # ------------------------------------------------------------------------
 # --- GLOBAL VARIABLES
 # ------------------------------------------------------------------------
+path = '/Users/alann/PythonProjects/INF728-NoSQL/'
+
 col_events_name = [
     # --- Dates
     'GlobalEventID', 'Day', 'MonthYear', 'Year', 'FractionDate',
@@ -102,16 +104,17 @@ def generate_zip_files(initial_date, final_date):
 
 
 # ------------------------------------------------------------------------
-def wget_file(file):
-    '''Run the wget bash command to download only ONE user defined file.
+def local_cmd(cmd, visible_output=False):
+    '''Run a cmd bash command.
 
     Parameters
     ---------
-    - file: type: str
+    - cmd: type: list
+        The terminal command we want to execute
+    - visible_output: type: bool
+        If we want to see the output of the cmd execution: out, err, ex
 
     '''
-    cmd = ['wget', file]
-
     # --- Run the wget bash command
     proc = subprocess.Popen(cmd,
         stdin=subprocess.PIPE,
@@ -121,16 +124,17 @@ def wget_file(file):
     try:
         out, err = proc.communicate(timeout=10)
         code = proc.returncode
-        print("OUT: '{}'".format(out))
-        print("ERR: '{}'".format(err))
-        print("EXIT: {}".format(code))
+        if visible_output:
+            print("OUT: '{}'".format(out))
+            print("ERR: '{}'".format(err))
+            print("EXIT: {}".format(code))
     except subprocess.TimeoutExpired:
         proc.kill()
         print("TIMEOUT")
 
 
 # ------------------------------------------------------------------------
-def read_zip_files(dict_files):
+def read_zip_files(dict_files, folder_path):
     '''Read some of the zip files downloaded with Pandas and concatenate
     the English and Translingual files.
 
@@ -138,6 +142,8 @@ def read_zip_files(dict_files):
     ---------
     - dict_files: type: dict
         Containing all the zip name files for a given date
+    - folder_path: type: str
+        Folder where the zip files are uploaded
 
     Return
     -----
@@ -146,30 +152,36 @@ def read_zip_files(dict_files):
 
     '''
     # --- Eng articles
-    df_export = pd.read_csv(dict_files['eng-export'].split('/')[-1], 
+    df_export = pd.read_csv(
+        folder_path+dict_files['eng-export'].split('/')[-1], 
         sep='\t',
         names=col_events_name,
         header=None)
 
-    df_mentions = pd.read_csv(dict_files['eng-mentions'].split('/')[-1], 
+    df_mentions = pd.read_csv(
+        folder_path+dict_files['eng-mentions'].split('/')[-1], 
         sep='\t',
         names=col_mentions_name,
         header=None)
     
     # --- Other countries articles
-    df_export_translingual = pd.read_csv(dict_files['translingual-export'].split('/')[-1], 
+    df_export_translingual = pd.read_csv(
+        folder_path+dict_files['translingual-export'].split('/')[-1], 
         sep='\t',
         names=col_events_name,
         header=None)
 
-    df_mentions_translingual = pd.read_csv(dict_files['translingual-mentions'].split('/')[-1], 
+    df_mentions_translingual = pd.read_csv(
+        folder_path+dict_files['translingual-mentions'].split('/')[-1], 
         sep='\t',
         names=col_mentions_name,
         header=None)
     
     # --- Concatenate DataFrames
-    df_export = pd.concat([df_export, df_export_translingual]).reset_index(drop=True)
-    df_mentions = pd.concat([df_mentions, df_mentions_translingual]).reset_index(drop=True)
+    df_export = pd.concat(
+        [df_export, df_export_translingual]).reset_index(drop=True)
+    df_mentions = pd.concat(
+        [df_mentions, df_mentions_translingual]).reset_index(drop=True)
 
     dict_df = {'export': df_export, 'mentions': df_mentions}
 
@@ -177,7 +189,7 @@ def read_zip_files(dict_files):
 
 
 # ------------------------------------------------------------------------
-def request1(dict_df):
+def request1(dict_df, date, folder_path):
     '''Pre-processing csv files that enable us to easily respond to the 
     first CQL request on Cassandra. The purpose of this function is to 
     simplify the data before copying into the Cassandra database.
@@ -190,6 +202,10 @@ def request1(dict_df):
         Contain the 3 zip file names and DataFrames: export, mentions & 
         gkg (already concatenate for both English and Translingual 
         articles)
+    - date: type: type: str
+        Date of the processing zip file
+    - folder_path: type: str
+        Folder where the zip files are uploaded
 
     Return
     -----
@@ -213,11 +229,14 @@ def request1(dict_df):
             x.split(';')[0].split(':')[-1] if isinstance(x, str) else x)
 
     # --- Write df in csv
-    df_req1.to_csv('data_request1.csv', index=False)
+    #folder = '/'.join(folder_path.split('/')[:-2]) + '/'
+    date = date.replace('-', '').replace(':', '').replace(' ', '-')
+    df_req1.to_csv(folder_path+'data-request1-{}.csv'.format(date),
+        index=False)
 
 
 # ------------------------------------------------------------------------
-def request2(dict_df):
+def request2(dict_df, date, folder_path):
     '''Pre-processing csv files that enable us to easily respond to the 
     second CQL request on Cassandra. 
 
@@ -227,6 +246,10 @@ def request2(dict_df):
         Contain the 3 zip file names and DataFrames: export, mentions & 
         gkg (already concatenate for both English and Translingual 
         articles)
+    - date: type: type: str
+        Date of the processing zip file
+    - folder_path: type: str
+        Folder where the zip files are uploaded
 
     Return
     -----
@@ -241,7 +264,10 @@ def request2(dict_df):
     df_req2 = df_export[col_req2_export]
 
     # --- Write df in csv
-    df_req2.to_csv('data_request2.csv', index=False)
+    #folder = '/'.join(folder_path.split('/')[:-2]) + '/'
+    date = date.replace('-', '').replace(':', '').replace(' ', '-')
+    df_req2.to_csv(folder_path+'data-request2-{}.csv'.format(date),
+        index=False)
 
 
 # ------------------------------------------------------------------------
@@ -249,6 +275,7 @@ def request2(dict_df):
 # ------------------------------------------------------------------------
 initial_date = sys.argv[1]  # str
 final_date = sys.argv[2]  # str
+delete_zip_files = False  # bool
 
 if __name__ == '__main__':
     # --------------------------------------------------------------------
@@ -256,49 +283,79 @@ if __name__ == '__main__':
     print('-'*75)
     print('---', ' Generating zip files, please wait ...\n')
     t_init = t.time()
-    zip_files = generate_zip_files(initial_date=initial_date, 
+    df_zip_files = generate_zip_files(initial_date=initial_date, 
         final_date=final_date)
-    print('-'*22, ' ZIP FILES GENERATION SUCCEED ', '-'*21)
+
+    print('-'*22, ' ZIP FILES GENERATION SUCCEED ', '-'*21, '\n')
     
-    # --------------------------------------------------------------------
-    # --- Download of all zip files
-    print('-'*75)
-    print('---', ' Downloading zip files, please wait ...\n')
-    for file in zip_files.iloc[0]:
-        wget_file(file)
-    print('-'*23, ' ZIP FILES DOWNLOAD SUCCEED ', '-'*22)
+    # --- Store all the files in a dictionnary
+    dict_zip_files = {}
+
+    for date in df_zip_files.index:
+        dict_zip_files[str(date)] = {
+            'eng-export': df_zip_files.loc[date]['eng-export'],
+            'translingual-export': df_zip_files.loc[date]['translingual-export'],
+            'eng-mentions': df_zip_files.loc[date]['eng-mentions'],
+            'translingual-mentions': df_zip_files.loc[date]['translingual-mentions'],
+            'eng-gkg': df_zip_files.loc[date]['eng-gkg'],
+            'translingual-gkg': df_zip_files.loc[date]['translingual-gkg']
+        }
+
+    # --- Lopp over all dates
+    for key_date in dict_zip_files.keys():
+        print('*'*75)
+        print('---', 'Process Zip file: {} \n'.format(key_date))
+        folder_path = path + key_date + '/'
+
+        # --------------------------------------------------------------------
+        # --- Download of all zip files
+        print('-'*75)
+        print('---', ' Downloading zip files, please wait ...\n')
+        for file in dict_zip_files[key_date].values():
+            wget_cmd = ['wget', file, '-P', folder_path]
+            local_cmd(wget_cmd)
+
+        print('-'*23, ' ZIP FILES DOWNLOAD SUCCEED ', '-'*22, '\n')
+        
+        # --------------------------------------------------------------------
+        # --- Pre-processing of zip files for requests
+        print('-'*75)
+        print('---', ' Pre-processing zip files, please wait ...\n')
+        dict_df = read_zip_files(dict_zip_files[key_date],
+            folder_path)
+
+        # --- Request 1
+        request1(dict_df, key_date, folder_path)
+        print('-'*20, ' PRE-PROCESSING REQUEST 1 SUCCEED ', '-'*19, '\n')
+
+        # --- Request 2
+        request2(dict_df, key_date, folder_path)
+        print('-'*20, ' PRE-PROCESSING REQUEST 2 SUCCEED ', '-'*19, '\n')
     
-    # --------------------------------------------------------------------
-    # --- Pre-processing of zip files for requests
-    print('-'*75)
-    print('---', ' Pre-processing zip files, please wait ...\n')
-    dict_zip_files = dict(zip_files.iloc[0])
-    dict_df = read_zip_files(dict_files=dict_zip_files)
+        # --- Request 3
 
-    # --- Request 1
-    request1(dict_df)
-    print('-'*20, ' PRE-PROCESSING REQUEST 1 SUCCEED ', '-'*19, '\n')
+        # --- Request 4
 
-    # --- Request 2
-    request2(dict_df)
-    print('-'*20, ' PRE-PROCESSING REQUEST 2 SUCCEED ', '-'*19, '\n')
- 
-    # --- Request 3
+        # --------------------------------------------------------------------
+        # --- Delete all zip files
+        print('-'*75)
+        print('---', ' Deleting zip files, please wait ...\n')
+        if os.path.exists(folder_path) & delete_zip_files:
+            rm_cmd = ['rm', '-r', folder_path]
+            local_cmd(rm_cmd)
 
-    # --- Request 4
+            print('-'*23, ' ZIP FILES DOWNLOAD SUCCEED ', '-'*22, '\n')
+        else :
+            print('---', 'No deletion of zip files\n')
 
-    # --------------------------------------------------------------------
-    # --- Delete all zip files
+        # --------------------------------------------------------------------
+        # --- Docker : copy csv into a containeur 
 
+        # --------------------------------------------------------------------
+        # --- Write and Run CQL queries with cassandra-driver if possible
 
-    # --------------------------------------------------------------------
-    # --- Docker : copy csv into a containeur 
-
-    # --------------------------------------------------------------------
-    # --- Write and Run CQL queries with cassandra-driver if possible
-
-    # --------------------------------------------------------------------
-    # --- Delete all zip files
+        # --------------------------------------------------------------------
+        # --- Delete all zip files
 
     print('Estimated time : {:.2f}s'.format(t.time()-t_init))
 
