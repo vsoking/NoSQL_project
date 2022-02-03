@@ -105,8 +105,9 @@ L’objectif de ce projet est de proposer un système de stockage distribué, r�
 
 Pour cette question, nous avons besoin :
 
-- Jour de l’évènement : DATEADDED, table EVENT
-- Pays de l’évènement : Actor1Geo_CountryCode, table EVENT
+- (Jour de l’évènement exact : DATEADDED, table EVENT) ?
+- Jour de l’évènement : Day, table EVENT
+- Pays de l’évènement : ActionGeo_CountryCode, table EVENT
 - Langue de l’évènement : MentionDocTranslationInfo, Table MENTIONS
 - Nombre d’évènements : GlobalEventID, table EVENT et MENTIONS (dont on fera la somme pour obtenir le nombre d’évènements)
 - ( Nombre d’articles : NumArticles, table EVENT ) ?
@@ -120,7 +121,7 @@ Pour cette question, nous avons besoin :
 
 Pour cette question, nous avons besoin :
 
-- Pays des évènements : Actor1Geo_CountryCode, table EVENT
+- Pays des évènements : ActionGeo_CountryCode, table EVENT
 - Les évènements : GlobalEventID, table EVENT
 - Notre de mentions : NumMentions, table EVENT
 
