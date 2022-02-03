@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------
 # Created by - Alann Goerke
-# Version - 2.1
-# Last Update - 02.02.2022
+# Version - 2.2
+# Last Update - 02.03.2022
 
 
 # ------------------------------------------------------------------------
@@ -216,7 +216,8 @@ def request1(dict_df, date, folder_path):
     df_mentions = dict_df['mentions']
 
     # --- Attributs selection
-    col_req1_export = ['GlobalEventID', 'Day', 'ActionGeo_CountryCode']
+    col_req1_export = ['GlobalEventID', 'DATEADDED', 'Day', 
+        'ActionGeo_CountryCode', 'NumArticles']
     col_req1_mentions = ['GlobalEventID', 'MentionDocTranslationInfo']
 
     df_req1 = df_export[col_req1_export]
@@ -226,7 +227,8 @@ def request1(dict_df, date, folder_path):
     # Possible to change NAN into a str like 'UK' if needed
     df_req1['MentionDocTranslationInfo'] = df_req1[
         'MentionDocTranslationInfo'].apply(lambda x: 
-            x.split(';')[0].split(':')[-1] if isinstance(x, str) else x)
+            x.split(';')[0].split(':')[-1] if isinstance(x, str) 
+            else 'eng')
 
     # --- Write df in csv
     #folder = '/'.join(folder_path.split('/')[:-2]) + '/'
@@ -258,8 +260,8 @@ def request2(dict_df, date, folder_path):
     '''
     df_export = dict_df['export']
 
-    col_req2_export = ['GlobalEventID', 'Day', 'MonthYear', 'Year',
-        'ActionGeo_CountryCode', 'NumMentions']
+    col_req2_export = ['GlobalEventID', 'DATEADDED', 'Day', 'MonthYear',
+        'Year', 'ActionGeo_CountryCode', 'NumMentions']
 
     df_req2 = df_export[col_req2_export]
 
@@ -281,7 +283,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------
     # --- Generation of zip-links between initial and final dates
     print('-'*75)
-    print('---', ' Generating zip files, please wait ...\n')
+    print('Generating zip files, please wait ...\n')
     t_init = t.time()
     df_zip_files = generate_zip_files(initial_date=initial_date, 
         final_date=final_date)
@@ -304,13 +306,14 @@ if __name__ == '__main__':
     # --- Lopp over all dates
     for key_date in dict_zip_files.keys():
         print('*'*75)
-        print('---', 'Process Zip file: {} \n'.format(key_date))
-        folder_path = path + key_date + '/'
+        print('Processing: {} \n'.format(key_date))
+        folder_date = key_date.replace(':', '.').replace(' ', '-')
+        folder_path = path + folder_date + '/'
 
         # --------------------------------------------------------------------
         # --- Download of all zip files
         print('-'*75)
-        print('---', ' Downloading zip files, please wait ...\n')
+        print('Downloading zip files, please wait ...\n')
         for file in dict_zip_files[key_date].values():
             wget_cmd = ['wget', file, '-P', folder_path]
             local_cmd(wget_cmd)
@@ -320,7 +323,7 @@ if __name__ == '__main__':
         # --------------------------------------------------------------------
         # --- Pre-processing of zip files for requests
         print('-'*75)
-        print('---', ' Pre-processing zip files, please wait ...\n')
+        print('Pre-processing zip files, please wait ...\n')
         dict_df = read_zip_files(dict_zip_files[key_date],
             folder_path)
 
@@ -339,20 +342,20 @@ if __name__ == '__main__':
         # --------------------------------------------------------------------
         # --- Delete all zip files
         print('-'*75)
-        print('---', ' Deleting zip files, please wait ...\n')
+        print('Deleting zip files, please wait ...\n')
         if os.path.exists(folder_path) & delete_zip_files:
             rm_cmd = ['rm', '-r', folder_path]
             local_cmd(rm_cmd)
 
             print('-'*23, ' ZIP FILES DOWNLOAD SUCCEED ', '-'*22, '\n')
         else :
-            print('---', 'No deletion of zip files\n')
+            print('No deletion of zip files\n')
 
         # --------------------------------------------------------------------
         # --- Docker : copy csv into a containeur 
 
         # --------------------------------------------------------------------
-        # --- Write and Run CQL queries with cassandra-driver if possible
+        # --- Cassandra : copy files into DB (queries with cassandra-driver)
 
         # --------------------------------------------------------------------
         # --- Delete all zip files
