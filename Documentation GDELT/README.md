@@ -3,7 +3,7 @@
 Les 3 tables à étudier sont : EVENT, MENTIONS et GKG.
 
 
-## Table EVENT
+## Table EVENT (246,16 Go)
 
 Dans cette table, il y a 5 catégories d’attributs :
 
@@ -14,7 +14,7 @@ Dans cette table, il y a 5 catégories d’attributs :
 5. La gestion des champs de données.
 
 *Remarque* : « To examine events at the 15 minute resolution, use the DATEADDED field (the second from the last field in this table at the end). » (p.2)
-
+=========================================================
 ### 1. Les dates et évènements
 
 - GlobalEventID : Identifiant unique assigné à chaque évènement enregistré.
@@ -62,7 +62,8 @@ Ces attributs permettent de répondre à la question : Qu’a fait l’acteur 1 
 - Actor1Geo_ADM2Code :  Le code du pays en 2 caractères suivi du code de division administrative 2 en 2 caractères également.
 - Actor1Geo_Lat : Latitude.
 - Actor1Geo_Long : Longitude.
-- Actor1Geo_FeatureID : GNS ou GNIS FeatureID. 
+- Actor1Geo_FeatureID : GNS ou GNIS FeatureID.
+
 
 Ces attributs sont répétés pour l’acteur 2 et l’action en remplaçant Actor1 par Actor2 ou Action.
 
@@ -71,8 +72,8 @@ Ces attributs sont répétés pour l’acteur 2 et l’action en remplaçant Act
 - DATEADDED : Ce champ permet de stocker la date à laquelle un évènement a été ajouté à la base de données maître / principale, au format YYYYMMDDHHMMSS.
 - SOURCEURL :  Enregistre l’url ou la citation des premiers articles d’actualité dans lesquels apparaît cet événement.
 
-
-## Table MENTIONS
+=======================================================================
+## Table MENTIONS (393,65 Go)
 
 - GlobalEventID : L’identifiant de l’évènement mentionné dans l’article. (Il n’est pas forcément unique ici)
 - EventTimeDate : Date de l’évènement au format YYYYMMDDHHMMSS, ce qui correspond au DATEADDED de l’évènement original enregistré).
@@ -92,9 +93,66 @@ Ces attributs sont répétés pour l’acteur 2 et l’action en remplaçant Act
   - SRCLC : Code du langage source : exemple ‘fra’ pour un article qui à été traduit du français à l’anglais.
   - ENG : Citation indiquant la machine et le modèle utilisé pour traduire le texte.
 - Extras : Généralement vide, cet attribut est réservé pour une future utilisation.
+=======================================================================
+
+## Table GKG (13,7To), ID de la table: gdelt-bq:gdeltv2.gkg 
 
 
-## Table GKG
+GKGRECORDID :Il est unique pour chaque GKG enregistré et prend la forme “YYYYMMDDHHMMSS-X” oou “YYYYMMDDHHMMSS-TX”.
+
+-Date: Elle est sous le format  YYYYMMDDHHMMSS,  c'est la date de publication du fichier GKG.
+
+-SourceCollectionIdentifier:C'est un identifiant numérique qui fait référence à la source de collecte du document et permet d'identifier cette dernière. Exemple 1= Web, 2= CITATIONONLY, ...., 5 = JSTOR,...
+
+-SourceCommonName:Il s'agit d'un autre identifiant de la soource sous format texte. Exemple JSTOR pour "JSTOR"...
+
+-DocumentIdentifier. Il est sous format texte et est l'unique identifiant externe de la source.
+
+-V1Counts: Il s'agit de blocs séparés par des points-virgules qui contiennent la liste des comptes trouvés dans le document. Il a la forme Count type #Count###Object Type###Location Type##Location FullName##Location CountryCode##Location ADM1Code###Location Latitude#Location Longitude#Location FeatureID
+
+-V2Counts: Identique à l'attribut précédent sauf qu'à la fin, il ajoute un champs supplémentaie
+
+-V1Themes: Contient la liste de tous les thèmes trouvés dans le document
+
+-V2Themes: Il s'agit de la liste de tous les thèmes de GKG.
+
+-V1Locations: Ce sont les emplacement trouvés dans le texte et extrait de l'algo de Leetaru 2012.
+
+-V2Locations: Identique à l'attribut précédent à la seule différence qu'un champs supplémentaire “Location ADM2Code” y est ajouté.
+
+-V1Persons: Liste de toutes les personnes dont le nom figure dans le texte extraits de l'algorithme de Leetaru 2012.
+
+-V2Persons: Contient la liste de tous les noms de personnes référées dans le document, ainsi que le décalage de caractère de l'endroit approximatif où ils ont été trouvés dans le document.
+
+-Organizations: Liste de tous les noms d'entreprises et d'organisations trouvés dans le texte extraits par le même algorithme que précédemment.
+
+-V2Organizations: contient une liste de toutes les organisations/sociétés référencées dans le document, ainsi que les décalages de caractères d'approximativement où dans le document ils ont été trouvés.
+
+-V2Tone: contient une liste délimitée par des virgules de six dimensions émotionnelles fondamentales.
+
+-Dates: contient une liste de toutes les références de date dans le document, ainsi que les décalages de caractères de l'endroit approximatif où elles ont été trouvées.
+
+-GCAM: (blocs délimités par des virgules, avec des paires clé/valeur délimitées par deux-points) Le système GCAM (Global Content Analysis Measures) exécute un ensemble de systèmes d'analyse de contenu sur chaque document et compile leurs résultats dans ce champ.
+
+-SharingImage: Il représente la sélection par le média de l'image unique qui capture le mieux l'orientation générale et le contenu de l'histoire.
+
+-RelatedImages: Il présente des images relatives qui complètent l'attribut précédent
+
+-SocialImageEmbeds: Images basées sur les médias sociaux
+
+-SocialVideoEmbeds: Vidéos basées sur les médias sociaux
+
+-Quotations: Listes d'URL de vidéos en lignes illustrant des réactions en temps réel
+
+-AllNames: Liste des caractéristiques des déclarations séparées par le symbole #. Exemple offset#lenght#verb#quote
+
+-Amounts: Ce champ contient une liste de tous les noms propres référencés dans le document, ainsi que les décalages de caractères de l'endroit approximatif où ils ont été trouvés
+
+-TranslationInfo	: Ce champ contient une liste de tous les montants numériques précis référencés dans le document, ainsi que les décalages de caractères de l'endroit approximatif où ils ont été trouvés dans le document.
+
+-Extras: Ce champ est réservé pour contenir des données spéciales non standard applicables à des sous-ensembles spéciaux de la collection GDELT.
+
+====================================================================================
 
 
 # Objectif du projet
