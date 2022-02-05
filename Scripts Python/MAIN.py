@@ -11,7 +11,7 @@ import sys
 import time as t
 import pandas as pd
 
-#from cassandra.cluster import Cluster
+from cassandra.cluster import Cluster
 
 
 # ------------------------------------------------------------------------
@@ -238,8 +238,8 @@ def cassandra_insert_req1(keyspace, table, df_data):
 
     '''
     # --- Cassandra cluster connection
-    #cluster = Cluster()
-    #session = cluster.connect(keyspace)
+    cluster = Cluster()
+    session = cluster.connect(keyspace)
 
     # --- Data insertion
     insert = "INSERT INTO {} (globaleventid, day, ".format(table) +\
@@ -258,7 +258,7 @@ def cassandra_insert_req1(keyspace, table, df_data):
             df_req['MentionDocTranslationInfo']+"');")
     
     # --- Execution of the insertion query
-    #df_req['insert_query'].apply(lambda x: session.execute(x))
+    df_req['insert_query'].apply(lambda x: session.execute(x))
 
 
 # ------------------------------------------------------------------------
@@ -334,9 +334,9 @@ if __name__ == '__main__':
             print('Request1: Inserting values into Cassandra, ' +\
                 'please wait...')
             
-            #cassandra_insert_req1(KEYSPACE='gdelt_alann',
-            #    TABLE='test1',
-            #    df1=request1(dict_df))
+            cassandra_insert_req1(KEYSPACE='gdelt_alann',
+                TABLE='test1',
+                df1=request1(dict_df))
 
         # --- Request 2
         if req2:
