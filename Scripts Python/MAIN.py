@@ -17,9 +17,6 @@ import pandas as pd
 # ------------------------------------------------------------------------
 # --- GLOBAL VARIABLES
 # ------------------------------------------------------------------------
-path = '/Users/alann/PythonProjects/INF728-NoSQL/'
-# path = '/home/ubuntu/'
-
 col_events_name = [
     # --- Dates
     'GlobalEventID', 'Day', 'MonthYear', 'Year', 'FractionDate',
