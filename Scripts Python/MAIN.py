@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------
 # Created by - Alann Goerke
-# Version - 4.0
-# Last Update - 02.05.2022
+# Version - 4.1
+# Last Update - 02.07.2022
 
 
 # ------------------------------------------------------------------------
@@ -224,7 +224,7 @@ def request1(dict_df):
 
 
 # ------------------------------------------------------------------------
-def cassandra_insert_req1(keyspace, table, df_data):
+def cassandra_insert_req1(KEYSPACE, TABLE, df_data):
     '''Insert data, row by row, into a user defined table in Cassandra.
 
     Parameters
@@ -239,10 +239,10 @@ def cassandra_insert_req1(keyspace, table, df_data):
     '''
     # --- Cassandra cluster connection
     cluster = Cluster()
-    session = cluster.connect(keyspace)
+    session = cluster.connect(KEYSPACE)
 
     # --- Data insertion
-    insert = "INSERT INTO {} (globaleventid, day, ".format(table) +\
+    insert = "INSERT INTO {} (globaleventid, day, ".format(TABLE) +\
             "actiongeocountrycode, numarticles, mentiondoctranslationinfo)" +\
             " VALUES ("
     
@@ -336,7 +336,7 @@ if __name__ == '__main__':
             
             cassandra_insert_req1(KEYSPACE='gdelt_alann',
                 TABLE='test1',
-                df1=request1(dict_df))
+                df_data=request1(dict_df))
 
         # --- Request 2
         if req2:
