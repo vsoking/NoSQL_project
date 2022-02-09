@@ -49,8 +49,13 @@ col_mentions_name = ['GlobalEventID', 'EventTimeDate', 'MentionTimeDate',
     'InRawText', 'Confidence', 'MentionDocLen', 'MentionDocTone',
     'MentionDocTranslationInfo', 'Extras']
 
-col_gkg_name = [''] # --- To be completed
-
+col_gkg_name = ['GKGRECORDID', 'Date', 'SourceCollectionIdentifier',
+    'SourceCommonName', 'DocumentIdentifier', 'V1Counts', 'V2Counts',
+    'V1Themes', 'V2Themes', 'V1Locations', 'V2Locations', 'V1Persons',
+    'V2Persons', 'Organizations', 'V2Organizations', 'V2Tone', 'Dates',
+    'GCAM', 'SharingImage', 'RelatedImages', 'SocialImageEmbeds',
+    'SocialVideoEmbeds', 'Quotations', 'AllNames', 'Amounts',
+    'TranslationInfo', 'Extras']
 
 # ------------------------------------------------------------------------
 # --- FUNCTIONS
@@ -151,6 +156,13 @@ def read_zip_files(dict_files):
         sep='\t',
         names=col_mentions_name,
         header=None)
+
+    df_gkg = pd.read_csv(
+        dict_files['eng-gkg'], 
+        sep='\t',
+        names=col_gkg_name,
+        header=None,
+        encoding="ISO-8859-1")
     
     # --- Other countries articles
     df_export_translingual = pd.read_csv(
@@ -165,6 +177,13 @@ def read_zip_files(dict_files):
         names=col_mentions_name,
         header=None)
 
+    df_gkg_translingual = pd.read_csv(
+        dict_files['translingual-gkg'], 
+        sep='\t',
+        names=col_gkg_name,
+        header=None,
+        encoding="ISO-8859-1")
+
     # --------------------------------------------------------------------
     # --- Concatenate DataFrames
     df_export = pd.concat(
@@ -173,7 +192,13 @@ def read_zip_files(dict_files):
     df_mentions = pd.concat(
         [df_mentions, df_mentions_translingual]).reset_index(drop=True)
 
-    dict_df = {'export': df_export, 'mentions': df_mentions}
+    df_gkg = pd.concat(
+        [df_gkg, df_gkg_translingual]).reset_index(drop=True)
+
+    dict_df = {
+        'export': df_export,
+        'mentions': df_mentions,
+        'gkg': df_gkg}
 
     return dict_df
 
@@ -224,6 +249,19 @@ def request1(dict_df):
 
 
 # ------------------------------------------------------------------------
+def request2(dict_df):
+    df_export = dict_df['export']
+
+    # --- Attributs selection for the request
+    col_req2_export = ['GlobalEventID', 'Day', 'MonthYear', 'Year',
+        'ActionGeo_CountryCode', 'NumMentions']
+
+    df_req2 = df_export[col_req2_export]
+
+    return df_req2
+
+
+# ------------------------------------------------------------------------
 def cassandra_insert_req1(KEYSPACE, TABLE, df_data):
     '''Insert data, row by row, into a user defined table in Cassandra.
 
@@ -252,11 +290,38 @@ def cassandra_insert_req1(KEYSPACE, TABLE, df_data):
         loc=df_req.shape[1],
         column='insert_query',
         value=insert+df_req['GlobalEventID'].astype(str)+','+
-            df_req['Day'].astype(str)+",'"+
-            df_req['ActionGeo_CountryCode']+"',"+
-            df_req['NumArticles'].astype(str)+",'"+
-            df_req['MentionDocTranslationInfo']+"');")
+            df_req['Day'].astype(str)+
+            ",'"+df_req['ActionGeo_CountryCode']+"',"+
+            df_req['NumArticles'].astype(str)+
+            ",'"+df_req['MentionDocTranslationInfo']+"');")
     
+    # --- Execution of the insertion query
+    df_req['insert_query'].apply(lambda x: session.execute(x))
+
+
+# ------------------------------------------------------------------------
+def cassandra_insert_req2(KEYSPACE, TABLE, df_data):
+    # --- Cassandra cluster connection
+    cluster = Cluster()
+    session = cluster.connect(KEYSPACE)
+
+    # --- Data insertion
+    insert = "INSERT INTO {} (globaleventid, day, ".format(TABLE) +\
+            "monthyear, year, actiongeocountrycode, nummentions)" +\
+            " VALUES ("
+    
+    df_req = df_data.dropna()  # NaN raises pbm if its not deleted
+
+    df_req.insert(
+        loc=df_req.shape[1],
+        column='insert_query',
+        value=insert+df_req['GlobalEventID'].astype(str)+','+
+            df_req['Day'].astype(str)+','+
+            df_req['MonthYear'].astype(str)+','+
+            df_req['Year'].astype(str)+','+
+            "'"+df_req['ActionGeo_CountryCode']+"'"+","+
+            df_req['NumMentions'].astype(str)+");")
+
     # --- Execution of the insertion query
     df_req['insert_query'].apply(lambda x: session.execute(x))
 
@@ -290,7 +355,7 @@ initial_date = sys.argv[1]  # str
 final_date = sys.argv[2]  # str
 
 req1 = True
-req2 = False
+req2 = True
 req3 = False
 req4 = False
 
@@ -334,14 +399,18 @@ if __name__ == '__main__':
             print('Request1: Inserting values into Cassandra, ' +\
                 'please wait...')
             
-            cassandra_insert_req1(KEYSPACE='gdelt_alann',
-                TABLE='test1',
+            cassandra_insert_req1(KEYSPACE='gdeltproject_python',
+                TABLE='requete_1',
                 df_data=request1(dict_df))
 
         # --- Request 2
         if req2:
             print('Request2: Inserting values into Cassandra, ' +\
                 'please wait...')
+
+            cassandra_insert_req2(KEYSPACE='gdeltproject_python',
+                TABLE='requete_2',
+                df_data=request2(dict_df))
 
         # --- Request 3
         if req3:
@@ -364,10 +433,11 @@ if __name__ == '__main__':
 
     if exec_time >= 3600:
         print('Total Execution Time: ' +\
-            '{} h {} min {:.0f} s'.format(h, min, sec))
+            '{:.0f} h {:.0f} min {:.0f} s'.format(h, min, sec))
     elif exec_time < 60:
         print('Total Execution Time: {:.2f} s'.format(sec))
     else:
-        print('Total Execution Time: {} min {:.0f} s'.format(min, sec))
+        print('Total Execution Time: {:.0f} min '.format(min) +\
+            '{:.0f} s'.format(sec))
 
     print('*'*27, ' EXECUTION SUCCEED ', '*'*27, '\n')
