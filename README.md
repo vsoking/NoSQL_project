@@ -68,18 +68,26 @@ J’ai créé deux fichiers :
 
 **Récapitulatif des actions effectuées par le script python actuellement :**
 
-Le script permet uniquement de post-traiter **un** fichier à partir d’une date donnée sous la forme explicitée précédement.
+Le script permet uniquement de post-traiter tous les fichiers compris entre deux dates données (en respectant la forme explicitée précédement), avec un pas de temps de 15 minutes.
 
-Le fonctionnement général du script est le suivant :
+Le fonctionnement général du script, pour chaque intervalle de temps, est le suivant :
 
 - Génération des 6 fichiers zip (export, mentions et gkq pour les articles en anglais et ceux en translingual),
 - Téléchargement de ces fichiers (dans le répertoire où se trouve le scipt) avec la commande wget,
-- Post-traitement, avec Pandas, de ces fichiers dans le but de répondre à la première requête,
-- Ecriture sur la machine virtuelle d’un nouveau fichier “data_request1.csv” qui contient tous les attributs permettant de répondre à la requête 1 dans une seule table.
+- Post-traitement, avec Pandas, de ces fichiers dans le but de répondre aux deux premières requêtes,
+- Ecriture sur la machine virtuelle de 2 nouveaux fichiers qui contiennent tous les attributs permettant de répondre aux requêtes ( un table par requête).
+
+Options:
+- Possibilité de visualiser ou non les sorties des commande du terminal : err, out, exit.
+- Possibilité de supprimer les fichiers contenant tous les zip pour chaque date (Ne pas activer cette option pour le moment, elle sera utile quand les fichiers csv seront copiés dans docker automatiquement)
 
 Pour plus de détail, regarder les commentaires du script python.
 
 **Axes d’améliorations possibles :**
 
 1. Générer tous les fichiers zip à télécharger pour **chacune** des dates entre les deux arguments (en prenant en compte un pas de temps de 15 minutes). Actuellement, le code traite uniquement un seul fichiuer de 15 minutes.
+--> **OK**
+
 2. Parallélisation des téléchargements des fichiers sur les 6 machines du cluster pour gagner du temps.
+
+3. Faire la copie des fichiers csv dans docker (dans le bon container).
