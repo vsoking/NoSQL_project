@@ -53,7 +53,7 @@ def questionOne(spark, event, mention):
                         .drop(mentionDF.globaleventid)\
                         .withColumn('globaleventid',col("globaleventid").cast("Integer"))\
                         .withColumn('day',col("day").cast("Integer"))\
-                        #.na.drop()
+                        .na.drop(subset="day")
     #mentionDF.show()
     #eventDF.show()
     #resultDF.show()
@@ -84,7 +84,7 @@ def questionTwo (spark, event, mention):
     resultDF = eventDF.join(mentionDF, eventDF.globaleventid == mentionDF.globaleventid, "outer")\
                         .drop(mentionDF.globaleventid)\
                         .withColumn("actiongeocountrycode", when(col("actiongeocountrycode")=="" ,None).otherwise(col("actiongeocountrycode")))\
-                        .na.drop()
+                        .na.drop(subset="actiongeocountrycode")
 
     eventDF.show()
     mentionDF.show()
@@ -123,7 +123,8 @@ def questionThree(spark, gkg):
                 .withColumn("personnes", explode(col("personnes")))\
                 .withColumn("tons", split(col("tons"), ',').getItem(0))\
                 .withColumn("tons", col("tons").cast("float"))\
-                .drop("date")
+                .drop("date")\
+                .na.drop(subset="source")
                 #.groupBy(["themes", "personnes", "lieux"])\
                 #.count()
                 #.withColumnRenamed("count", "numarticles")
@@ -162,7 +163,8 @@ def questionFour(spark, event, mention, gkg):
                     .withColumn("tons", col("tons").cast("float"))
     resultDF = gkgDF.join(mentionDF, (gkgDF.sourcecollectionid == mentionDF.mentiontype) & (gkgDF.sourcecommonname == mentionDF.mentionsourcename), "inner")\
                     .join(eventDF, mentionDF.globaleventid == eventDF.globaleventid, "right")\
-                    .drop("globaleventid",  "mentiontype", "mentionsourcename", "sourcecollectionid")
+                    .drop("globaleventid",  "mentiontype", "mentionsourcename", "sourcecollectionid")\
+                    .na.drop(subset=["actor1countrycode", "actor2countrycode"])
 
     resultDF.show()
     resultDF.write\
@@ -227,10 +229,10 @@ if __name__ == "__main__":
         print("\n Downloaded {} file size {} {}\n".format(download, sys.getsizeof(event), sys.getsizeof(mention)))
       
         
-        #questionOne(spark, event, mention)
-        #questionTwo(spark, event, mention)
+        questionOne(spark, event, mention)
+        questionTwo(spark, event, mention)
         #questionThree.write()
-        #questionThree(spark, gkg)
+        questionThree(spark, gkg)
         questionFour(spark, event, mention, gkg)
         event.clear()
         mention.clear()
