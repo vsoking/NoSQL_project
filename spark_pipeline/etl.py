@@ -134,7 +134,42 @@ def questionThree(spark, gkg):
             .options(table="requete_3", keyspace="test")\
             .save()
 
+def questionFour(spark, event, mention, gkg):
+    eventColIndx = [0, 1, 7, 17]
+    mentionColIndx = [0, 3, 4]
+    gkgColIndx = [2, 3, 7, 15]
 
+    eventRDD = spark.sparkContext.parallelize(event).map(lambda x: [x.split('\t')[i] for i in eventColIndx])
+    mentionRDD = spark.sparkContext.parallelize(mention).map(lambda x: [x.split('\t')[i] for i in mentionColIndx])
+    gkgRDD = spark.sparkContext.parallelize(gkg).map(lambda x: [x.split('\t')[i] for i in gkgColIndx])
+
+    eventDF = spark.createDataFrame(eventRDD, ["globaleventid", "date", "actor1countrycode", "actor2countrycode"])\
+                    .withColumn("globaleventid", col("globaleventid").cast("Integer"))\
+                    .withColumn("date", to_date(col("date"), "yyyyMMdd"))\
+                    .withColumn("day", dayofweek(col("date")))\
+                    .withColumn("day", col("day").cast("Integer"))\
+                    .withColumn("month", month(col("date")))\
+                    .withColumn("month", col("month").cast("Integer"))\
+                    .withColumn("year", year(col("date")))\
+                    .withColumn("year", col("year").cast("Integer"))\
+                    .drop("date")
+    mentionDF = spark.createDataFrame(mentionRDD, ["globaleventid","mentiontype", "mentionsourcename"])\
+                    .withColumn("globaleventid", col("globaleventid").cast("Integer"))\
+                    .withColumn("mentiontype", col("mentiontype").cast("Integer"))
+    gkgDF = spark.createDataFrame(gkgRDD, ["sourcecollectionid","sourcecommonname", "themes", "tons"])\
+                    .withColumn("sourcecollectionid", col("sourcecollectionid").cast("Integer"))\
+                    .withColumn("tons", split(col("tons"), ',').getItem(0))\
+                    .withColumn("tons", col("tons").cast("float"))
+    resultDF = gkgDF.join(mentionDF, (gkgDF.sourcecollectionid == mentionDF.mentiontype) & (gkgDF.sourcecommonname == mentionDF.mentionsourcename), "inner")\
+                    .join(eventDF, mentionDF.globaleventid == eventDF.globaleventid, "right")\
+                    .drop("globaleventid",  "mentiontype", "mentionsourcename", "sourcecollectionid")
+
+    resultDF.show()
+    resultDF.write\
+            .format("org.apache.spark.sql.cassandra")\
+            .mode("append")\
+            .options(table="requete_4", keyspace="test")\
+            .save()
 
 
 if __name__ == "__main__":
@@ -176,26 +211,27 @@ if __name__ == "__main__":
             
             if re.search(".+\.mentions\.CSV\.zip", url):
                 #file_ = unzipFile(requests.get(url).content).splitlines()
-                #mention += file_
+                mention += file_
                 download +=1
     
             elif re.search(".+\.export\.CSV\.zip", url):
                 #file_ = unzipFile(requests.get(url).content).splitlines()
-                #event += file_
+                event += file_
                 download +=1
     
             elif re.search(".+\.gkg\.csv\.zip", url):
                 gkg += file_
                 #questionThree.addData(file_)
                 download +=1
-                break
+                break 
         print("\n Downloaded {} file size {} {}\n".format(download, sys.getsizeof(event), sys.getsizeof(mention)))
       
         
         #questionOne(spark, event, mention)
         #questionTwo(spark, event, mention)
         #questionThree.write()
-        questionThree(spark, gkg)
+        #questionThree(spark, gkg)
+        questionFour(spark, event, mention, gkg)
         event.clear()
         mention.clear()
         gkg.clear()
