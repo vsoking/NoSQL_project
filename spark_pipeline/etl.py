@@ -30,53 +30,58 @@ def questionOne(spark, event, mention):
         return split(split(col, ':')[1], ';')[0]
     
     eventColIndx = [0, 1, 33, 53]
-    
     mentionColIndx = [0, 14]
-    
-
-    eventRDD = spark.sparkContext.parallelize(event).map(lambda x: [x.split('\t')[i] for i in eventColIndx])#.repartition(4)
-       
-    
-    mentionRDD = spark.sparkContext.parallelize(mention).map(lambda x: [x.split('\t')[i] for i in mentionColIndx])#.repartition(4)
-    #eventDF = spark.read.option("delimiter", '\t')\
-    #                .csv(eventRDD, header=False)\
-    #                .select("_c0","_c1","_c53")\
-    #                .withColumnRenamed("_C0", "GlobalEventID")\
-    #                .withColumnRenamed("_c1", "day")\
-    #                .withColumnRenamed("_c53", "country")
-    eventSchema = StructType([StructField("GlobalEventID",IntegerType(),True)\
-                    ,StructField("day",IntegerType(),True)
-                    ,StructField("numarticles",IntegerType(),True)\
-                    ,StructField("actiongeocountrycode",StringType(),True)])
-    mentionSchema = StructType([StructField("GlobalEventID",IntegerType(),True)\
-                    ,StructField("mentiondoctranslationinfo",StringType(),True)])
+    eventRDD = spark.sparkContext.parallelize(event).map(lambda x: [x.split('\t')[i] for i in eventColIndx])    
+    mentionRDD = spark.sparkContext.parallelize(mention).map(lambda x: [x.split('\t')[i] for i in mentionColIndx])
     eventDF = spark.createDataFrame(eventRDD, ["globaleventid","day", "numarticles", "actiongeocountrycode"])
     mentionDF = spark.createDataFrame(mentionRDD, ["globaleventid","mentiondoctranslationinfo"])\
                     .withColumn("mentiondoctranslationinfo", when(col("mentiondoctranslationinfo")=='', "eng").otherwise(getLang(col("mentiondoctranslationinfo"))))
-    #mentionDF = spark.read.option("delimiter", '\t')\
-    #                        .csv(mentionRDD, header=False)\
-    #                        .select("_c0", "_c14")\
-    #                        .cache()\
-    #                        .withColumnRenamed("_c0", "GlobalEventID")\
-    #                        .withColumnRenamed("_c14", "SourceLanguage")
-    
     resultDF = eventDF.join(mentionDF, eventDF.globaleventid == mentionDF.globaleventid, "outer")\
                         .drop(mentionDF.globaleventid)\
                         .withColumn('globaleventid',col("globaleventid").cast("Integer"))\
                         .withColumn('day',col("day").cast("Integer"))\
-                        .na.drop()
-                        #.groupBy(["day","country","sourcelanguage"])\
-                        #.count()
-    mentionDF.show()
-    eventDF.show()
-    resultDF.show()
-    
+                        #.na.drop()
+    #mentionDF.show()
+    #eventDF.show()
+    #resultDF.show()
     resultDF.write\
             .format("org.apache.spark.sql.cassandra")\
             .mode("append")\
             .options(table="requete_1", keyspace="test")\
             .save()
+
+
+def questionTwo (spark, event, mention):
+    eventColIndx = [0, 1, 53]
+    mentionColIndx = [0]
     
+    eventRDD = spark.sparkContext.parallelize(event).map(lambda x: [x.split('\t')[i] for i in eventColIndx])
+    mentionRDD = spark.sparkContext.parallelize(mention).map(lambda x: [x.split('\t')[i] for i in mentionColIndx])
+    eventDF = spark.createDataFrame(eventRDD, ["globaleventid","day", "actiongeocountrycode"])\
+                    .withColumn('globaleventid',col("globaleventid").cast("Integer"))\
+                    .withColumn('day',to_date(col("day"), "yyyyMMdd"))\
+                    .withColumn("year", year(col("day")))\
+                    .withColumn("monthyear", month(col("day")))\
+                    .withColumn("day", dayofweek(col("day")))
+    mentionDF = spark.createDataFrame(mentionRDD, ["globaleventid"])\
+                    .withColumn('globaleventid',col("globaleventid").cast("Integer"))\
+                    .groupBy("globaleventid")\
+                    .agg(count("globaleventid").alias("nummentions"))
+
+    resultDF = eventDF.join(mentionDF, eventDF.globaleventid == mentionDF.globaleventid, "outer")\
+                        .drop(mentionDF.globaleventid)\
+                        .withColumn("actiongeocountrycode", when(col("actiongeocountrycode")=="" ,None).otherwise(col("actiongeocountrycode")))\
+                        .na.drop()
+
+    eventDF.show()
+    mentionDF.show()
+    resultDF.show()
+    resultDF.write\
+            .format("org.apache.spark.sql.cassandra")\
+            .mode("append")\
+            .options(table="requete_2", keyspace="test")\
+            .save()
+
 if __name__ == "__main__":
     conf = SparkConf().setAppName("Streaming_ETL_GDELT")\
             .set('spark.cassandra.connection.host', 'localhost')
@@ -88,14 +93,13 @@ if __name__ == "__main__":
             .config(conf=conf)\
             .getOrCreate()
     
-    #eventSchema = gdeltschema.eventSchema
+    
     master_translationfile_url = "http://data.gdeltproject.org/gdeltv2/masterfilelist-translation.txt"
     master_file_url = "http://data.gdeltproject.org/gdeltv2/masterfilelist.txt"
     master_file = requests.get(master_file_url)
     master_translationfile = requests.get(master_translationfile_url)
     urlRegex = "http:\/\/data.gdeltproject.org\/gdeltv2\/{}.+"
-    filelist_2021 = '\n'.join(re.findall("http:\/\/data.gdeltproject.org\/gdeltv2\/2021.+", master_file.text)\
-                    +re.findall("http:\/\/data.gdeltproject.org\/gdeltv2\/2021.+", master_translationfile.text))
+    
 
     mention =  []
     event = []
@@ -105,34 +109,34 @@ if __name__ == "__main__":
     endDate = date(2021, 12, 31)
     period = timedelta(days=1)
     download = 0
-    month = 1
     while(day <= endDate):
         daysList = [day + timedelta(days=x) for x in range(period.days)]
-        #urlRegex = urlRegex.format(day.strftime("%Y%m%d"))
+    
         for d in daysList:
             urlList += re.findall(urlRegex.format(d.strftime("%Y%m%d")), master_file.text)
-        #urlList = [
+    
         for url in urlList:
-        #for d in daysList:
+    
             #file_ = unzipFile(requests.get(url).content).splitlines()
             
             if re.search(".+\.mentions\.CSV\.zip", url):
                 file_ = unzipFile(requests.get(url).content).splitlines()
                 mention += file_
                 download +=1
-                #print("\n Downloaded {} file\n".format(download))
+    
             elif re.search(".+\.export\.CSV\.zip", url):
                 file_ = unzipFile(requests.get(url).content).splitlines()
                 event += file_
                 download +=1
-                #print("\n Downloaded {} file\n".format(download))
+    
             elif re.search(".+\.gkg\.csv\.zip", url):
                 pass
                 #gkg.append(file_)
         print("\n Downloaded {} file size {} {}\n".format(download, sys.getsizeof(event), sys.getsizeof(mention)))
+      
         
-        
-        questionOne(spark, event, mention)
+        #questionOne(spark, event, mention)
+        questionTwo(spark, event, mention)
         event.clear()
         mention.clear()
         gkg.clear()
