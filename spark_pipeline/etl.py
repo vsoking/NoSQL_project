@@ -24,6 +24,19 @@ def unzipFile(zip_file):
     myzip.close()
     return ret
 
+class Question:
+
+    def __init__(self, spark, indxCol):
+        self.spark = spark
+        self.colIndx = indxCol
+        self.rdd = spark.sparkContext.parallelize([])
+    def addData(self, data):
+        tmp_rdd = spark.sparkContext.parallelize(data).map(lambda x: [x.split('\t')[i] for i in self.colIndx])
+        #self.rdd = self.rdd.union(tmp_rdd)
+    def write(self):
+        pass
+
+
 def questionOne(spark, event, mention):
     
     def getLang(col):
@@ -82,6 +95,48 @@ def questionTwo (spark, event, mention):
             .options(table="requete_2", keyspace="test")\
             .save()
 
+#class QuestionThree(Question):
+
+     
+
+#    def write(self):
+
+def questionThree(spark, gkg):
+    gkgColIndx = [1, 3, 7, 9, 11, 15]
+
+    gkgRDD = spark.sparkContext.parallelize(gkg)\
+                    .map(lambda x: [x.split('\t')[i] for i in gkgColIndx])
+    gkgDF = spark.createDataFrame(gkgRDD, ["date", "source", "themes", "lieux", "personnes", "tons"])\
+                .withColumn("date", to_timestamp(col("date"), "yyyyMMddHHmmss"))\
+                .withColumn("day", dayofweek(col("date")))\
+                .withColumn("day", col("day").cast("Integer"))\
+                .withColumn("month", month(col("date")))\
+                .withColumn("month", col("month").cast("Integer"))\
+                .withColumn("year", year(col("date")))\
+                .withColumn("year", col("year").cast("Integer"))\
+                .withColumn("themes", split(col("themes"), ';'))\
+                .withColumn("themes", explode(col("themes")))\
+                .withColumn("lieux", split(col("lieux"), ';'))\
+                .withColumn("lieux", explode(col("lieux")))\
+                .withColumn("lieux", split(col("lieux"), '#').getItem(2))\
+                .withColumn("personnes", split(col("personnes"), ';'))\
+                .withColumn("personnes", explode(col("personnes")))\
+                .withColumn("tons", split(col("tons"), ',').getItem(0))\
+                .withColumn("tons", col("tons").cast("float"))\
+                .drop("date")
+                #.groupBy(["themes", "personnes", "lieux"])\
+                #.count()
+                #.withColumnRenamed("count", "numarticles")
+    gkgDF.show()
+    gkgDF.write\
+            .format("org.apache.spark.sql.cassandra")\
+            .mode("append")\
+            .options(table="requete_3", keyspace="test")\
+            .save()
+
+
+
+
 if __name__ == "__main__":
     conf = SparkConf().setAppName("Streaming_ETL_GDELT")\
             .set('spark.cassandra.connection.host', 'localhost')
@@ -93,7 +148,7 @@ if __name__ == "__main__":
             .config(conf=conf)\
             .getOrCreate()
     
-    
+    #questionThree = QuestionThree(spark, [1, 3, 7, 9, 11, 15])
     master_translationfile_url = "http://data.gdeltproject.org/gdeltv2/masterfilelist-translation.txt"
     master_file_url = "http://data.gdeltproject.org/gdeltv2/masterfilelist.txt"
     master_file = requests.get(master_file_url)
@@ -117,26 +172,30 @@ if __name__ == "__main__":
     
         for url in urlList:
     
-            #file_ = unzipFile(requests.get(url).content).splitlines()
+            file_ = unzipFile(requests.get(url).content).splitlines()
             
             if re.search(".+\.mentions\.CSV\.zip", url):
-                file_ = unzipFile(requests.get(url).content).splitlines()
-                mention += file_
+                #file_ = unzipFile(requests.get(url).content).splitlines()
+                #mention += file_
                 download +=1
     
             elif re.search(".+\.export\.CSV\.zip", url):
-                file_ = unzipFile(requests.get(url).content).splitlines()
-                event += file_
+                #file_ = unzipFile(requests.get(url).content).splitlines()
+                #event += file_
                 download +=1
     
             elif re.search(".+\.gkg\.csv\.zip", url):
-                pass
-                #gkg.append(file_)
+                gkg += file_
+                #questionThree.addData(file_)
+                download +=1
+                break
         print("\n Downloaded {} file size {} {}\n".format(download, sys.getsizeof(event), sys.getsizeof(mention)))
       
         
         #questionOne(spark, event, mention)
-        questionTwo(spark, event, mention)
+        #questionTwo(spark, event, mention)
+        #questionThree.write()
+        questionThree(spark, gkg)
         event.clear()
         mention.clear()
         gkg.clear()
