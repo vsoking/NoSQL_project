@@ -4,12 +4,12 @@
 
 Notre groupe de travail est composé de 6 personnes :
 
-- Waly : tp-hadoop-13, 192.168.3.14
-- Urian : tp-hadoop-3, 192.168.3.29
-- Alann : tp-hadoop-20, 192.168.3.163
-- Rayan : tp-hadoop-38, 192.168.3.84
-- Valdez : tp-hadoop-45, 192.168.3.146
-- Alvin : tp-hadoop-29, 192.168.3.160
+-   tp-hadoop-13
+-   tp-hadoop-3, 
+-   tp-hadoop-20, 
+-   tp-hadoop-38, 
+-   tp-hadoop-45, 
+-   tp-hadoop-29, 
 
 ## Description des dossiers
 
