@@ -28,4 +28,4 @@ Cette section permet de retravailler les 3 tables afin de mieux comprendre leurs
 Plusieurs versions des scripts pythons qui ont permis de lancer le téléchargement des fichiers, de manipuler ces fichiers et d'insérer les données dans Cassandra pour répondre aux 4 requêtes demandées.
 
 - spark_job :
-Application spark, qui télécharge la donnée , effectue les traitements nécessaires puis insère la donnée dans cassandra.  Cette solution n'a pas été utilisée au final car trop lente, et au bout d'un moment l'application finit par crash car nous avons assez de ressources (RAM) pour exécuter cette application. Une optimisation est nécessaire.
+Application spark, qui télécharge la donnée , effectue les traitements nécessaires puis insère la donnée dans cassandra.  Cette solution n'a pas été utilisée au final car trop lente, et au bout d'un moment l'application finit par crash car nous n'avons pas assez de ressources (RAM) pour exécuter cette application. Une optimisation est nécessaire.
