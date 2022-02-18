@@ -2,7 +2,7 @@
 
 ## Groupe
 
-Notre groupe de travail est composé de 6 personnes :
+Notre groupe de travail est composé de 6 machines :
 
 -   tp-hadoop-13
 -   tp-hadoop-3, 
